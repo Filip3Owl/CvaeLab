@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Model checkpoints & outputs
+checkpoints/
+*.pt
+*.pth
+generated_samples.png
+reconstructions.png
+interpolation.png
+training_history.png
+
+# Dataset
+archive/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

@@ -68,14 +68,16 @@ Every training run is wrapped in `mlflow.start_run()`. Parameters, per-epoch met
 
 ### Results
 
-All output images are saved to `results/` (committed to the repo):
+Output images are organized by run under `results/run_vN/` (committed to the repo):
 
 | File | Description |
 |---|---|
-| `results/training_history.png` | 4-panel plot: total loss, recon, KL, β schedule |
-| `results/generated_samples.png` | 32 images sampled from z ~ N(0, I) |
-| `results/reconstructions.png` | Original vs. reconstructed images |
-| `results/interpolation.png` | Latent space interpolation (z₁ → z₂) |
+| `results/run_vN/training_history.png` | 4-panel plot: total loss, recon, KL, β schedule |
+| `results/run_vN/generated_samples.png` | 32 images sampled from z ~ N(0, I) |
+| `results/run_vN/reconstructions.png` | Original vs. reconstructed images |
+| `results/run_vN/interpolation.png` | Latent space interpolation (z₁ → z₂) |
+
+After each run, move the images from `results/` to `results/run_vN/` and add the new folder to `.gitignore` exceptions.
 
 ### Key constants (defined in `model.py`)
 
@@ -86,7 +88,7 @@ All output images are saved to `results/` (committed to the repo):
 | `BETA_MAX` | 1.0 | Maximum KL weight after warmup |
 | `KL_WARMUP` | 25 | Epochs to anneal β from 0 → BETA_MAX |
 
-Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`) are defined at the top of `train.py` and mirrored in notebook cell 7.
+Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`, `AUGMENT`) are defined at the top of `train.py` and mirrored in notebook cells 3 and 7.
 
 ## Roadmap
 
@@ -94,10 +96,10 @@ Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`) are defined at the
 - [x] MLflow experiment tracking
 - [x] Dropout regularization
 - [x] KL annealing
-- [ ] Data augmentation (RandomHorizontalFlip, ColorJitter)
+- [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
 - [ ] Latent space visualization (t-SNE / UMAP)
-- [ ] Conditional VAE (class-guided generation)
 - [ ] Perceptual loss
+- [ ] Conditional VAE (class-guided generation)
 
 ## Dataset
 

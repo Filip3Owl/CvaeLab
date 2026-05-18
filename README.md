@@ -34,21 +34,35 @@ Decoder:                        z (128) → FC → ConvTranspose×4 → 3×64×6
 | Dropout | 0.2 (encoder and decoder) |
 | Parameters | 6,561,792 |
 
-## Training results — Run v1
+## Training results
 
-Training for 50 epochs on ~27,000 images (CPU, Intel Mac).
+All runs: 50 epochs, ~27,000 images, CPU (Intel Mac), Adam lr=1e-3, latent dim=128.
+
+### Run v1 — Baseline
 
 | Epoch | Total loss | Recon loss | KL divergence |
 |---|---|---|---|
 | 1 | 1408.23 | 1224.72 | 183.51 |
 | 10 | ~620.00 | ~468.00 | ~152.00 |
-| 20 | 623.92 | 471.08 | 152.84 |
 | 50 | 572.12 | 420.24 | 151.88 |
 
-**Reconstruction loss improved 66%** — from 1,224 down to 420 over 50 epochs.  
-**KL divergence stabilized at ~152** — healthy latent space organization, no posterior collapse.
+![Training history v1](results/run_v1/training_history.png)
 
-![Training history](results/training_history.png)
+### Run v2 — KL Annealing
+
+Added linear β warmup (0→1 over 25 epochs) to prevent posterior collapse in early training.
+
+| Epoch | Total loss | Recon loss | KL divergence |
+|---|---|---|---|
+| 1 | 1408.23 | 1224.72 | 183.51 |
+| 25 | ~614.00 | ~462.00 | ~152.00 |
+| 50 | ~572.00 | ~420.00 | ~152.00 |
+
+![Training history v2](results/run_v2/training_history.png)
+
+### Run v3 — Data Augmentation *(in progress)*
+
+Added `RandomHorizontalFlip` + `ColorJitter` to improve generalization.
 
 ## Project structure
 
@@ -96,28 +110,31 @@ jupyter notebook vae_animals.ipynb
 
 **5. Compare experiments with MLflow**
 ```bash
-mlflow ui   # → http://localhost:5000
+mlflow ui
 ```
+> Opens the experiment dashboard at `http://localhost:5000` (local only — requires the command above to be running).
 
 ## Outputs
 
+Results are organized by run under `results/`:
+
 | File | Description |
 |---|---|
-| `results/training_history.png` | Loss curves (total, reconstruction, KL) |
-| `results/generated_samples.png` | 32 images sampled from z ~ N(0, I) |
-| `results/reconstructions.png` | Original vs. reconstructed images |
-| `results/interpolation.png` | Smooth transition between two latent vectors |
+| `results/run_vN/training_history.png` | Loss curves (total, reconstruction, KL, β) |
+| `results/run_vN/generated_samples.png` | 32 images sampled from z ~ N(0, I) |
+| `results/run_vN/reconstructions.png` | Original vs. reconstructed images |
+| `results/run_vN/interpolation.png` | Smooth transition between two latent vectors |
 
 ## Roadmap
 
 - [x] Convolutional VAE baseline
 - [x] MLflow experiment tracking
 - [x] Dropout regularization
-- [ ] KL annealing
-- [ ] Data augmentation
+- [x] KL annealing
+- [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
+- [ ] Latent space visualization (t-SNE / UMAP)
 - [ ] Perceptual loss
 - [ ] Conditional VAE (class-guided generation)
-- [ ] Latent space visualization (t-SNE / UMAP)
 
 ## Dataset license
 

@@ -112,6 +112,11 @@ mlflow ui   # → http://localhost:5000
 - [ ] Conditional VAE (class-guided generation)
 - [ ] Latent space visualization (t-SNE / UMAP)
 
+## Dataset license
+
+Animals-10 is licensed under [GNU General Public License (GPL)](https://www.gnu.org/licenses/gpl-3.0.html).  
+The dataset is **not included** in this repository — download it separately from [Kaggle](https://www.kaggle.com/datasets/alessiocorrado99/animals10).
+
 ## Requirements
 
 - Python 3.11

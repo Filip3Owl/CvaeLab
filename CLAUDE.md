@@ -34,6 +34,12 @@ python generate.py --checkpoint checkpoints/vae_final.pt --interpolate
 python generate.py --checkpoint checkpoints/vae_final.pt --history
 ```
 
+**Visualize the latent space (t-SNE):**
+```bash
+python visualize.py --checkpoint checkpoints/vae_final.pt
+python visualize.py --checkpoint checkpoints/vae_final.pt --samples 300 --method umap
+```
+
 **Open MLflow UI to compare experiment runs:**
 ```bash
 mlflow ui   # → http://localhost:5000
@@ -76,6 +82,7 @@ Output images are organized by run under `results/run_vN/` (committed to the rep
 | `results/run_vN/generated_samples.png` | 32 images sampled from z ~ N(0, I) |
 | `results/run_vN/reconstructions.png` | Original vs. reconstructed images |
 | `results/run_vN/interpolation.png` | Latent space interpolation (z₁ → z₂) |
+| `results/run_vN/latent_space.png` | t-SNE / UMAP projection of the latent space, colored by class |
 
 After each run, move the images from `results/` to `results/run_vN/` and add the new folder to `.gitignore` exceptions.
 
@@ -97,7 +104,7 @@ Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`, `AUGMENT`) are def
 - [x] Dropout regularization
 - [x] KL annealing
 - [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
-- [ ] Latent space visualization (t-SNE / UMAP)
+- [x] Latent space visualization (t-SNE / UMAP)
 - [ ] Perceptual loss
 - [ ] Conditional VAE (class-guided generation)
 

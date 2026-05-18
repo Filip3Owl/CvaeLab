@@ -72,6 +72,10 @@ Added `RandomHorizontalFlip` + `ColorJitter` to improve generalization.
 
 ![Training history v3](results/run_v3/training_history.png)
 
+### Latent space — t-SNE projection
+
+![Latent space t-SNE](results/run_v3/latent_space.png)
+
 ## Project structure
 
 ```
@@ -132,6 +136,7 @@ Results are organized by run under `results/`:
 | `results/run_vN/generated_samples.png` | 32 images sampled from z ~ N(0, I) |
 | `results/run_vN/reconstructions.png` | Original vs. reconstructed images |
 | `results/run_vN/interpolation.png` | Smooth transition between two latent vectors |
+| `results/run_vN/latent_space.png` | t-SNE / UMAP projection of the latent space, colored by class |
 
 ## Roadmap
 
@@ -140,7 +145,7 @@ Results are organized by run under `results/`:
 - [x] Dropout regularization
 - [x] KL annealing
 - [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
-- [ ] Latent space visualization (t-SNE / UMAP)
+- [x] Latent space visualization (t-SNE / UMAP)
 - [ ] Perceptual loss
 - [ ] Conditional VAE (class-guided generation)
 

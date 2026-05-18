@@ -18,6 +18,7 @@ LATENT_DIM      = 128
 DROPOUT         = 0.2
 BETA_MAX        = 1.0   # maximum KL weight
 KL_WARMUP       = 25    # epochs to anneal β from 0 → BETA_MAX
+AUGMENT         = True  # data augmentation (flip + color jitter)
 SAVE_EVERY      = 5
 CKPT_DIR        = "checkpoints"
 EXPERIMENT_NAME = "cvae-animals10"
@@ -32,7 +33,7 @@ def main():
 
     os.makedirs(CKPT_DIR, exist_ok=True)
 
-    loader = get_dataloader(DATA_DIR, batch_size=BATCH_SIZE)
+    loader = get_dataloader(DATA_DIR, batch_size=BATCH_SIZE, augment=AUGMENT)
     print(f"Dataset size: {len(loader.dataset)} images")
 
     mlflow.set_experiment(EXPERIMENT_NAME)
@@ -54,6 +55,7 @@ def main():
             "dropout":     DROPOUT,
             "latent_dim":  LATENT_DIM,
             "batch_size":  BATCH_SIZE,
+            "augment":     AUGMENT,
             "optimizer":   "Adam",
             "device":      str(device),
         })

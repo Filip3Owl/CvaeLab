@@ -5,14 +5,23 @@ from PIL import Image
 
 IMG_SIZE = 64
 
-transform = transforms.Compose([
+train_transform = transforms.Compose([
+    transforms.Resize((IMG_SIZE, IMG_SIZE)),
+    transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+])
+
+eval_transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
+
 class AnimalsDataset(Dataset):
-    def __init__(self, root_dir, transform=transform):
+    def __init__(self, root_dir, transform=train_transform):
         self.root_dir = root_dir
         self.transform = transform
         self.samples = []
@@ -33,7 +42,8 @@ class AnimalsDataset(Dataset):
         return self.transform(img)
 
 
-def get_dataloader(root_dir, batch_size=64, num_workers=2, shuffle=True):
-    dataset = AnimalsDataset(root_dir)
+def get_dataloader(root_dir, batch_size=64, num_workers=0, shuffle=True, augment=True):
+    transform = train_transform if augment else eval_transform
+    dataset = AnimalsDataset(root_dir, transform=transform)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle,
-                      num_workers=num_workers, pin_memory=True)
+                      num_workers=num_workers, pin_memory=False)

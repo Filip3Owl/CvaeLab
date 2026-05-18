@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 LATENT_DIM = 128
 DROPOUT    = 0.2
+BETA_MAX   = 1.0
+KL_WARMUP  = 25
 
 
 class Encoder(nn.Module):
@@ -134,6 +136,24 @@ class VAE(nn.Module):
             next(self.parameters()).device
         )
         return self.decoder(z)
+
+
+def get_beta(epoch: int, warmup: int = KL_WARMUP, beta_max: float = BETA_MAX) -> float:
+    """
+    Compute the KL weight β for the current epoch using linear annealing.
+
+    β rises linearly from 0 to beta_max over `warmup` epochs,
+    then stays at beta_max for the remainder of training.
+
+    Args:
+        epoch    : Current epoch (1-indexed).
+        warmup   : Number of epochs for the linear ramp.
+        beta_max : Target KL weight after warmup.
+
+    Returns:
+        β value for this epoch.
+    """
+    return min(epoch / warmup, 1.0) * beta_max
 
 
 def vae_loss(

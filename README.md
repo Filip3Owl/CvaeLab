@@ -60,9 +60,17 @@ Added linear β warmup (0→1 over 25 epochs) to prevent posterior collapse in e
 
 ![Training history v2](results/run_v2/training_history.png)
 
-### Run v3 — Data Augmentation *(in progress)*
+### Run v3 — Data Augmentation
 
 Added `RandomHorizontalFlip` + `ColorJitter` to improve generalization.
+
+| Epoch | Total loss | Recon loss | KL divergence |
+|---|---|---|---|
+| 1 | 1408.23 | 1224.72 | 183.51 |
+| 25 | 616.62 | 464.85 | 151.77 |
+| 50 | 572.12 | 420.24 | 151.88 |
+
+![Training history v3](results/run_v3/training_history.png)
 
 ## Project structure
 

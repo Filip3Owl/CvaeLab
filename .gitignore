@@ -36,9 +36,14 @@ checkpoints/
 *.jpg
 *.jpeg
 !results/
-!results/*.png
-!results/*.jpg
-!results/*.jpeg
+!results/run_v1/
+!results/run_v1/*.png
+!results/run_v1/*.jpg
+!results/run_v1/*.jpeg
+!results/run_v2/
+!results/run_v2/*.png
+!results/run_v2/*.jpg
+!results/run_v2/*.jpeg
 
 # Dataset
 archive/

@@ -30,13 +30,15 @@ checkpoints/
 *.pt
 *.pth
 *.onnx
-generated_samples.png
-reconstructions.png
-interpolation.png
-training_history.png
+
+# Images — ignored globally except inside results/
 *.png
 *.jpg
 *.jpeg
+!results/
+!results/*.png
+!results/*.jpg
+!results/*.jpeg
 
 # Dataset
 archive/

@@ -41,7 +41,7 @@ Training for 50 epochs on ~27,000 images (CPU, Intel Mac).
 **Reconstruction loss improved 66%** — from 1,224 down to 420 over 50 epochs.  
 **KL divergence stabilized at ~152** — healthy latent space organization, no posterior collapse.
 
-![Training history](training_history.png)
+![Training history](results/training_history.png)
 
 ## Project structure
 
@@ -96,10 +96,10 @@ mlflow ui   # → http://localhost:5000
 
 | File | Description |
 |---|---|
-| `training_history.png` | Loss curves (total, reconstruction, KL) |
-| `generated_samples.png` | 32 images sampled from z ~ N(0, I) |
-| `reconstructions.png` | Original vs. reconstructed images |
-| `interpolation.png` | Smooth transition between two latent vectors |
+| `results/training_history.png` | Loss curves (total, reconstruction, KL) |
+| `results/generated_samples.png` | 32 images sampled from z ~ N(0, I) |
+| `results/reconstructions.png` | Original vs. reconstructed images |
+| `results/interpolation.png` | Smooth transition between two latent vectors |
 
 ## Roadmap
 

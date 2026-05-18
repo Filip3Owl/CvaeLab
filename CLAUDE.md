@@ -47,34 +47,58 @@ The project trains a **convolutional Variational Autoencoder (CVAE)** on the Ani
 
 ```
 archive/raw-img/<class>/*.jpg  →  AnimalsDataset  →  DataLoader  →  VAE  →  checkpoints/
+                                                                            results/
 ```
 
 Images are resized to 64×64 and normalized to [-1, 1] to match the decoder's `Tanh` output.
 
 ### Model (`model.py`)
 
-Three classes: `Encoder`, `Decoder`, `VAE`.
+Three classes: `Encoder`, `Decoder`, `VAE`. Two utility functions: `vae_loss`, `get_beta`.
 
-- **Encoder**: 4× `Conv2d` (stride=2, halving resolution each time) → flatten → two linear heads producing `μ` and `log σ²` (both `LATENT_DIM=128`).
+- **Encoder**: 4× `Conv2d` (stride=2) + `BatchNorm2d` + `LeakyReLU` + `Dropout2d` → flatten → `Dropout` → two linear heads producing `μ` and `log σ²` (both `LATENT_DIM=128`).
 - **Reparameterization**: `z = μ + σ·ε`, `ε ~ N(0,I)`. In `eval()` mode returns `μ` directly (no noise).
-- **Decoder**: linear projection → reshape to `(256, 4, 4)` → 4× `ConvTranspose2d` (stride=2, doubling resolution) → `Tanh`.
-- **Loss** (`vae_loss`): `MSE(recon, x)` + `β · KL(q(z|x) ∥ p(z))`. KL has a closed form for Gaussians. `β=1` is a standard VAE; increasing `β` trades reconstruction quality for disentanglement.
+- **Decoder**: linear projection + `Dropout` → reshape to `(256, 4, 4)` → 4× `ConvTranspose2d` (stride=2) + `BatchNorm2d` + `ReLU` + `Dropout2d` → `Tanh`.
+- **Loss** (`vae_loss`): `MSE(recon, x)` + `β · KL(q(z|x) ∥ p(z))`. KL has a closed form for Gaussians.
+- **KL Annealing** (`get_beta`): β rises linearly from 0 to `BETA_MAX` over `KL_WARMUP` epochs, then stays at `BETA_MAX`. Prevents posterior collapse in early training by letting the model focus on reconstruction first.
 
 ### Experiment tracking
 
-Every training run is wrapped in `mlflow.start_run()`. Parameters, per-epoch metrics (`loss_total`, `loss_recon`, `loss_kl`, `lr`), checkpoints, and output images are all logged automatically. Run data is stored in `mlruns/` (gitignored).
+Every training run is wrapped in `mlflow.start_run()`. Parameters, per-epoch metrics (`loss_total`, `loss_recon`, `loss_kl`, `beta`, `lr`), checkpoints, and output images are all logged automatically. Run data is stored in `mlruns/` (gitignored).
 
-### Key constants
+### Results
 
-Defined at the top of each file and mirrored in the notebook:
+All output images are saved to `results/` (committed to the repo):
 
-| Constant | Default | Where |
+| File | Description |
+|---|---|
+| `results/training_history.png` | 4-panel plot: total loss, recon, KL, β schedule |
+| `results/generated_samples.png` | 32 images sampled from z ~ N(0, I) |
+| `results/reconstructions.png` | Original vs. reconstructed images |
+| `results/interpolation.png` | Latent space interpolation (z₁ → z₂) |
+
+### Key constants (defined in `model.py`)
+
+| Constant | Default | Description |
 |---|---|---|
-| `LATENT_DIM` | 128 | `model.py`, notebook cell 4 |
-| `IMG_SIZE` | 64 | `dataset.py`, notebook cell 3 |
-| `BATCH_SIZE` | 64 | `dataset.py`, notebook cell 3 |
-| `BETA` | 1.0 | `train.py`, notebook cell 7 |
+| `LATENT_DIM` | 128 | Latent space dimensionality |
+| `DROPOUT` | 0.2 | Dropout probability in encoder and decoder |
+| `BETA_MAX` | 1.0 | Maximum KL weight after warmup |
+| `KL_WARMUP` | 25 | Epochs to anneal β from 0 → BETA_MAX |
+
+Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`) are defined at the top of `train.py` and mirrored in notebook cell 7.
+
+## Roadmap
+
+- [x] Convolutional VAE baseline
+- [x] MLflow experiment tracking
+- [x] Dropout regularization
+- [x] KL annealing
+- [ ] Data augmentation (RandomHorizontalFlip, ColorJitter)
+- [ ] Latent space visualization (t-SNE / UMAP)
+- [ ] Conditional VAE (class-guided generation)
+- [ ] Perceptual loss
 
 ## Dataset
 
-`archive/raw-img/` is gitignored and must be downloaded separately from [Kaggle — Animals-10](https://www.kaggle.com/datasets/alessiocorrado99/animals10). Class folders are named in Italian (`cane`, `gatto`, etc.); `translate.py` in `archive/` has the mapping.
+`archive/raw-img/` is gitignored and must be downloaded separately from [Kaggle — Animals-10](https://www.kaggle.com/datasets/alessiocorrado99/animals10). Class folders are named in Italian (`cane`, `gatto`, etc.); `archive/translate.py` has the Italian → English mapping. License: GNU GPL.

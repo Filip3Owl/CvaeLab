@@ -7,11 +7,11 @@
 ![NumPy](https://img.shields.io/badge/NumPy-1.26.4-013243?style=for-the-badge&logo=numpy&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-3.9.0-11557C?style=for-the-badge&logo=python&logoColor=white)
 
-A convolutional Variational Autoencoder (CVAE) trained on the [Animals-10](https://www.kaggle.com/datasets/alessiocorrado99/animals10) dataset for image generation and latent space exploration.
+A convolutional Variational Autoencoder trained on the [Animals-10](https://www.kaggle.com/datasets/alessiocorrado99/animals10) dataset for image generation and latent space exploration. Currently evolving towards a **Conditional VAE** for class-guided generation.
 
 ## Overview
 
-This project implements a CVAE from scratch using PyTorch. The model learns a compact latent representation of animal images and can generate new samples by decoding random points sampled from the latent space.
+This project implements a VAE from scratch using PyTorch, with progressive improvements across runs. The model learns a compact latent representation of animal images and can generate new samples by decoding random points sampled from the latent space. The next milestone is a Conditional VAE (cVAE) that accepts a class label as input, enabling controlled generation (e.g. "generate a cat").
 
 **Dataset:** Animals-10 — ~27,000 images across 10 classes (dog, horse, elephant, butterfly, chicken, cat, cow, sheep, spider, squirrel)
 
@@ -81,10 +81,12 @@ Added `RandomHorizontalFlip` + `ColorJitter` to improve generalization.
 ```
 cvae-lab/
 ├── vae_animals.ipynb   # Main notebook (exploration → training → generation)
-├── model.py            # VAE architecture (Encoder, Decoder, VAE, vae_loss)
-├── dataset.py          # AnimalsDataset and DataLoader
-├── train.py            # Training script (CLI alternative to notebook)
+├── model.py            # VAE + cVAE architectures (Encoder, Decoder, VAE, CVAE, vae_loss)
+├── dataset.py          # AnimalsDataset with class labels and DataLoader
+├── train.py            # VAE training script
+├── train_cvae.py       # cVAE training script (class-conditional) — coming soon
 ├── generate.py         # Image generation and latent space visualization
+├── visualize.py        # t-SNE / UMAP latent space visualization
 ├── requirements.txt    # Python dependencies
 └── .gitignore
 ```
@@ -146,8 +148,13 @@ Results are organized by run under `results/`:
 - [x] KL annealing
 - [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
 - [x] Latent space visualization (t-SNE / UMAP)
-- [ ] Perceptual loss
 - [ ] Conditional VAE (class-guided generation)
+  - [ ] Etapa 1 — Dataset com labels
+  - [ ] Etapa 2 — Arquitetura cVAE (`model.py`)
+  - [ ] Etapa 3 — Script de treino (`train_cvae.py`)
+  - [ ] Etapa 4 — Geração condicional (`generate.py --class dog`)
+  - [ ] Etapa 5 — Visualização t-SNE com clusters separados
+- [ ] Perceptual loss
 
 ## Dataset license
 

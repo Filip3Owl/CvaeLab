@@ -22,9 +22,14 @@ pip install -r requirements.txt
 jupyter notebook vae_animals.ipynb
 ```
 
-**Train from the terminal (alternative to notebook):**
+**Train VAE from the terminal:**
 ```bash
 python train.py
+```
+
+**Train cVAE (class-conditional) — coming soon:**
+```bash
+python train_cvae.py
 ```
 
 **Generate images from a saved checkpoint:**
@@ -47,7 +52,7 @@ mlflow ui   # → http://localhost:5000
 
 ## Architecture
 
-The project trains a **convolutional Variational Autoencoder (CVAE)** on the Animals-10 dataset (~27k images, 10 classes).
+The project trains a **convolutional Variational Autoencoder (VAE)** on the Animals-10 dataset (~27k images, 10 classes), evolving towards a **Conditional VAE (cVAE)** for class-guided generation.
 
 ### Data flow
 
@@ -60,7 +65,7 @@ Images are resized to 64×64 and normalized to [-1, 1] to match the decoder's `T
 
 ### Model (`model.py`)
 
-Three classes: `Encoder`, `Decoder`, `VAE`. Two utility functions: `vae_loss`, `get_beta`.
+VAE classes: `Encoder`, `Decoder`, `VAE`. cVAE classes (coming): `ConditionalEncoder`, `ConditionalDecoder`, `CVAE`. Shared utilities: `vae_loss`, `get_beta`.
 
 - **Encoder**: 4× `Conv2d` (stride=2) + `BatchNorm2d` + `LeakyReLU` + `Dropout2d` → flatten → `Dropout` → two linear heads producing `μ` and `log σ²` (both `LATENT_DIM=128`).
 - **Reparameterization**: `z = μ + σ·ε`, `ε ~ N(0,I)`. In `eval()` mode returns `μ` directly (no noise).
@@ -105,8 +110,13 @@ Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`, `AUGMENT`) are def
 - [x] KL annealing
 - [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
 - [x] Latent space visualization (t-SNE / UMAP)
-- [ ] Perceptual loss
 - [ ] Conditional VAE (class-guided generation)
+  - [ ] Etapa 1 — Dataset com labels (`dataset.py`)
+  - [ ] Etapa 2 — Arquitetura cVAE (`model.py`)
+  - [ ] Etapa 3 — Script de treino (`train_cvae.py`)
+  - [ ] Etapa 4 — Geração condicional (`generate.py --class dog`)
+  - [ ] Etapa 5 — Visualização t-SNE com clusters separados
+- [ ] Perceptual loss
 
 ## Dataset
 

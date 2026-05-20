@@ -1,9 +1,31 @@
 import os
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
+
+import torch
 from PIL import Image
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
 
 IMG_SIZE = 64
+
+# Italian folder name → English label
+LABEL_MAP = {
+    "cane":       "dog",
+    "cavallo":    "horse",
+    "elefante":   "elephant",
+    "farfalla":   "butterfly",
+    "gallina":    "chicken",
+    "gatto":      "cat",
+    "mucca":      "cow",
+    "pecora":     "sheep",
+    "ragno":      "spider",
+    "scoiattolo": "squirrel",
+}
+
+# Deterministic integer index per class (sorted alphabetically by Italian name)
+CLASS_TO_IDX: dict[str, int] = {cls: i for i, cls in enumerate(sorted(LABEL_MAP))}
+IDX_TO_CLASS: dict[int, str] = {i: LABEL_MAP[cls] for cls, i in CLASS_TO_IDX.items()}
+
+NUM_CLASSES = len(CLASS_TO_IDX)
 
 train_transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
@@ -21,28 +43,45 @@ eval_transform = transforms.Compose([
 
 
 class AnimalsDataset(Dataset):
-    def __init__(self, root_dir, transform=train_transform):
-        self.root_dir = root_dir
+    """
+    Animals-10 dataset returning (image_tensor, class_index) pairs.
+
+    Args:
+        root_dir  : Path to the dataset root (one sub-folder per class).
+        transform : torchvision transform pipeline applied to each image.
+    """
+
+    def __init__(self, root_dir: str, transform=train_transform):
         self.transform = transform
-        self.samples = []
+        self.samples: list[tuple[str, int]] = []
 
         for class_name in os.listdir(root_dir):
+            if class_name not in CLASS_TO_IDX:
+                continue
             class_path = os.path.join(root_dir, class_name)
             if not os.path.isdir(class_path):
                 continue
+            label = CLASS_TO_IDX[class_name]
             for fname in os.listdir(class_path):
                 if fname.lower().endswith((".jpg", ".jpeg", ".png")):
-                    self.samples.append(os.path.join(class_path, fname))
+                    self.samples.append((os.path.join(class_path, fname), label))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, idx):
-        img = Image.open(self.samples[idx]).convert("RGB")
-        return self.transform(img)
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
+        path, label = self.samples[idx]
+        img = Image.open(path).convert("RGB")
+        return self.transform(img), label
 
 
-def get_dataloader(root_dir, batch_size=64, num_workers=0, shuffle=True, augment=True):
+def get_dataloader(
+    root_dir: str,
+    batch_size: int = 64,
+    num_workers: int = 0,
+    shuffle: bool = True,
+    augment: bool = True,
+) -> DataLoader:
     transform = train_transform if augment else eval_transform
     dataset = AnimalsDataset(root_dir, transform=transform)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle,

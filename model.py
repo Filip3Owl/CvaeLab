@@ -138,6 +138,143 @@ class VAE(nn.Module):
         return self.decoder(z)
 
 
+NUM_CLASSES = 10
+EMBED_DIM   = 64
+
+
+class ConditionalEncoder(nn.Module):
+    """
+    Conditional encoder: maps (image, class label) → (μ, log σ²).
+
+    The class label is projected to an embedding vector and concatenated
+    with the flattened conv features before the linear heads.
+    """
+
+    def __init__(
+        self,
+        latent_dim: int = LATENT_DIM,
+        num_classes: int = NUM_CLASSES,
+        embed_dim: int = EMBED_DIM,
+        dropout: float = DROPOUT,
+    ):
+        super().__init__()
+        self.embedding = nn.Embedding(num_classes, embed_dim)
+        self.conv = nn.Sequential(
+            nn.Conv2d(3,   32,  4, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(0.2),
+
+            nn.Conv2d(32,  64,  4, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(dropout),
+
+            nn.Conv2d(64,  128, 4, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            nn.Dropout2d(dropout),
+
+            nn.Conv2d(128, 256, 4, stride=2, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+        )
+        flat = 256 * 4 * 4
+        self.pre_latent = nn.Dropout(dropout)
+        self.fc_mu     = nn.Linear(flat + embed_dim, latent_dim)
+        self.fc_logvar = nn.Linear(flat + embed_dim, latent_dim)
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor):
+        h = self.conv(x).view(x.size(0), -1)
+        h = self.pre_latent(h)
+        c = self.embedding(y)                   # (B, embed_dim)
+        h = torch.cat([h, c], dim=1)            # (B, flat + embed_dim)
+        return self.fc_mu(h), self.fc_logvar(h)
+
+
+class ConditionalDecoder(nn.Module):
+    """
+    Conditional decoder: maps (z, class label) → 3×64×64 image.
+
+    The class embedding is concatenated to z before the FC projection,
+    allowing the decoder to produce class-specific textures and shapes.
+    """
+
+    def __init__(
+        self,
+        latent_dim: int = LATENT_DIM,
+        num_classes: int = NUM_CLASSES,
+        embed_dim: int = EMBED_DIM,
+        dropout: float = DROPOUT,
+    ):
+        super().__init__()
+        self.embedding = nn.Embedding(num_classes, embed_dim)
+        self.fc = nn.Sequential(
+            nn.Linear(latent_dim + embed_dim, 256 * 4 * 4),
+            nn.Dropout(dropout),
+        )
+        self.deconv = nn.Sequential(
+            nn.ConvTranspose2d(256, 128, 4, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(128, 64,  4, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Dropout2d(dropout),
+
+            nn.ConvTranspose2d(64,  32,  4, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(32,  3,   4, stride=2, padding=1),
+            nn.Tanh(),
+        )
+
+    def forward(self, z: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        c = self.embedding(y)                           # (B, embed_dim)
+        h = self.fc(torch.cat([z, c], dim=1))           # (B, 256*4*4)
+        return self.deconv(h.view(z.size(0), 256, 4, 4))
+
+
+class CVAE(nn.Module):
+    """
+    Conditional Variational Autoencoder.
+
+    Both encoder and decoder receive the class label y alongside the
+    image / latent vector, enabling class-guided generation at inference.
+    """
+
+    def __init__(
+        self,
+        latent_dim: int = LATENT_DIM,
+        num_classes: int = NUM_CLASSES,
+        embed_dim: int = EMBED_DIM,
+        dropout: float = DROPOUT,
+    ):
+        super().__init__()
+        self.encoder = ConditionalEncoder(latent_dim, num_classes, embed_dim, dropout)
+        self.decoder = ConditionalDecoder(latent_dim, num_classes, embed_dim, dropout)
+
+    def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+        if self.training:
+            std = torch.exp(0.5 * logvar)
+            eps = torch.randn_like(std)
+            return mu + eps * std
+        return mu
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor):
+        mu, logvar = self.encoder(x, y)
+        z = self.reparameterize(mu, logvar)
+        recon = self.decoder(z, y)
+        return recon, mu, logvar
+
+    @torch.no_grad()
+    def generate(self, y: torch.Tensor) -> torch.Tensor:
+        """Generate images conditioned on class labels y."""
+        z = torch.randn(y.size(0), self.encoder.fc_mu.out_features).to(y.device)
+        return self.decoder(z, y)
+
+
 def get_beta(epoch: int, warmup: int = KL_WARMUP, beta_max: float = BETA_MAX) -> float:
     """
     Compute the KL weight β for the current epoch using linear annealing.

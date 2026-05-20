@@ -27,7 +27,7 @@ jupyter notebook vae_animals.ipynb
 python train.py
 ```
 
-**Train cVAE (class-conditional) — coming soon:**
+**Train cVAE (class-conditional):**
 ```bash
 python train_cvae.py
 ```
@@ -57,25 +57,54 @@ The project trains a **convolutional Variational Autoencoder (VAE)** on the Anim
 ### Data flow
 
 ```
-archive/raw-img/<class>/*.jpg  →  AnimalsDataset  →  DataLoader  →  VAE  →  checkpoints/
-                                                                            results/
+archive/raw-img/<class>/*.jpg  →  AnimalsDataset  →  DataLoader  →  VAE / CVAE  →  checkpoints/
+                                  (image, label)                                     results/
 ```
 
 Images are resized to 64×64 and normalized to [-1, 1] to match the decoder's `Tanh` output.
 
+### Dataset module (`dataset.py`)
+
+Exports: `AnimalsDataset`, `CLASS_TO_IDX`, `IDX_TO_CLASS`, `NUM_CLASSES`, `LABEL_MAP`, `train_transform`, `eval_transform`, `get_dataloader`.
+
+- **`AnimalsDataset`**: returns `(image_tensor, class_index)` pairs. Walks `root_dir` subdirectories, filtering by Italian folder names in `CLASS_TO_IDX`.
+- **`CLASS_TO_IDX`**: deterministic mapping from Italian folder name → integer index (sorted alphabetically: `cane=0 … scoiattolo=9`).
+- **`IDX_TO_CLASS`**: reverse mapping from integer index → English label.
+- **`LABEL_MAP`**: Italian folder name → English label.
+- **`get_dataloader`**: convenience wrapper that builds a `DataLoader` with optional augmentation.
+
 ### Model (`model.py`)
 
-VAE classes: `Encoder`, `Decoder`, `VAE`. cVAE classes (coming): `ConditionalEncoder`, `ConditionalDecoder`, `CVAE`. Shared utilities: `vae_loss`, `get_beta`.
+VAE classes: `Encoder`, `Decoder`, `VAE`. cVAE classes: `ConditionalEncoder`, `ConditionalDecoder`, `CVAE`. Shared utilities: `vae_loss`, `get_beta`.
 
+**VAE:**
 - **Encoder**: 4× `Conv2d` (stride=2) + `BatchNorm2d` + `LeakyReLU` + `Dropout2d` → flatten → `Dropout` → two linear heads producing `μ` and `log σ²` (both `LATENT_DIM=128`).
 - **Reparameterization**: `z = μ + σ·ε`, `ε ~ N(0,I)`. In `eval()` mode returns `μ` directly (no noise).
 - **Decoder**: linear projection + `Dropout` → reshape to `(256, 4, 4)` → 4× `ConvTranspose2d` (stride=2) + `BatchNorm2d` + `ReLU` + `Dropout2d` → `Tanh`.
+
+**cVAE:**
+- **ConditionalEncoder**: same conv backbone as `Encoder`. After flattening, concatenates `embed(y)` (`EMBED_DIM=64`) to the conv features before the μ / log σ² heads.
+- **ConditionalDecoder**: concatenates `embed(y)` to `z` before the FC projection. Same deconv backbone as `Decoder`.
+- **CVAE**: combines both. `CVAE.generate(y)` samples `z ~ N(0, I)` and decodes with the target class label.
+
+**Shared utilities:**
 - **Loss** (`vae_loss`): `MSE(recon, x)` + `β · KL(q(z|x) ∥ p(z))`. KL has a closed form for Gaussians.
 - **KL Annealing** (`get_beta`): β rises linearly from 0 to `BETA_MAX` over `KL_WARMUP` epochs, then stays at `BETA_MAX`. Prevents posterior collapse in early training by letting the model focus on reconstruction first.
 
 ### Experiment tracking
 
-Every training run is wrapped in `mlflow.start_run()`. Parameters, per-epoch metrics (`loss_total`, `loss_recon`, `loss_kl`, `beta`, `lr`), checkpoints, and output images are all logged automatically. Run data is stored in `mlruns/` (gitignored).
+Every training run is wrapped in `mlflow.start_run()`. Parameters, per-epoch metrics (`loss_total`, `loss_recon`, `loss_kl`, `beta`, `lr`), checkpoints, and output images are all logged automatically. IS and FID scores are logged to the same run after evaluation. Run data is stored in `mlruns/` (gitignored).
+
+### Evaluation metrics
+
+IS and FID are computed in notebook section 12 using `torchmetrics[image]`:
+
+| Metric | Measures | Direction |
+|---|---|---|
+| **Inception Score (IS)** | Quality + diversity of generated images via Inception-v3 | Higher = better |
+| **Fréchet Inception Distance (FID)** | Distance between real and generated distributions in Inception-v3 feature space | Lower = better |
+
+Both metrics upsample 64×64 → 299×299 for Inception-v3. Use them to compare VAE vs. cVAE runs, not as absolute quality targets.
 
 ### Results
 
@@ -99,6 +128,8 @@ After each run, move the images from `results/` to `results/run_vN/` and add the
 | `DROPOUT` | 0.2 | Dropout probability in encoder and decoder |
 | `BETA_MAX` | 1.0 | Maximum KL weight after warmup |
 | `KL_WARMUP` | 25 | Epochs to anneal β from 0 → BETA_MAX |
+| `NUM_CLASSES` | 10 | Number of animal classes |
+| `EMBED_DIM` | 64 | Class embedding dimensionality in cVAE |
 
 Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`, `AUGMENT`) are defined at the top of `train.py` and mirrored in notebook cells 3 and 7.
 
@@ -110,9 +141,10 @@ Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`, `AUGMENT`) are def
 - [x] KL annealing
 - [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
 - [x] Latent space visualization (t-SNE / UMAP)
+- [x] IS & FID evaluation metrics (notebook section 12)
 - [ ] Conditional VAE (class-guided generation)
-  - [ ] Etapa 1 — Dataset com labels (`dataset.py`)
-  - [ ] Etapa 2 — Arquitetura cVAE (`model.py`)
+  - [x] Etapa 1 — Dataset com labels (`dataset.py`)
+  - [x] Etapa 2 — Arquitetura cVAE (`model.py`)
   - [ ] Etapa 3 — Script de treino (`train_cvae.py`)
   - [ ] Etapa 4 — Geração condicional (`generate.py --class dog`)
   - [ ] Etapa 5 — Visualização t-SNE com clusters separados

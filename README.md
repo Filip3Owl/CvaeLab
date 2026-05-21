@@ -6,6 +6,7 @@
 ![Jupyter](https://img.shields.io/badge/Jupyter-Notebook-F37626?style=for-the-badge&logo=jupyter&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-1.26.4-013243?style=for-the-badge&logo=numpy&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-3.9.0-11557C?style=for-the-badge&logo=python&logoColor=white)
+![torchmetrics](https://img.shields.io/badge/torchmetrics-1.9.0-FF6F00?style=for-the-badge&logo=python&logoColor=white)
 
 A convolutional Variational Autoencoder trained on the [Animals-10](https://www.kaggle.com/datasets/alessiocorrado99/animals10) dataset for image generation and latent space exploration. Currently evolving towards a **Conditional VAE** for class-guided generation.
 
@@ -16,6 +17,8 @@ This project implements a VAE from scratch using PyTorch, with progressive impro
 **Dataset:** Animals-10 — ~27,000 images across 10 classes (dog, horse, elephant, butterfly, chicken, cat, cow, sheep, spider, squirrel)
 
 ## Architecture
+
+### VAE
 
 ```
 Encoder: 3×64×64 → Conv×4 → Flatten → μ (128), log σ² (128)
@@ -32,7 +35,26 @@ Decoder:                        z (128) → FC → ConvTranspose×4 → 3×64×6
 | Loss | MSE reconstruction + β · KL divergence (β = 1) |
 | Optimizer | Adam (lr = 1e-3, ReduceLROnPlateau) |
 | Dropout | 0.2 (encoder and decoder) |
-| Parameters | 6,561,792 |
+| Parameters | 2,958,659 |
+
+### cVAE
+
+The **Conditional VAE** conditions both encoder and decoder on the class label `y` via a learned embedding (`EMBED_DIM=64`):
+
+```
+Image x ──► ConditionalEncoder ──► μ, log σ²  ──► z = μ + σ·ε ──► ConditionalDecoder ──► x̂
+                      ↑                                                       ↑
+                  embed(y)                                                embed(y)
+```
+
+| Component | Details |
+|---|---|
+| Class embedding | `nn.Embedding(10, 64)` in both encoder and decoder |
+| Encoder conditioning | `cat([conv_features, embed(y)])` before μ / log σ² heads |
+| Decoder conditioning | `cat([z, embed(y)])` before FC projection |
+| Parameters | 3,238,467 |
+
+At inference, `CVAE.generate(y)` samples `z ~ N(0, I)` and decodes with the target class label.
 
 ## Training results
 
@@ -76,15 +98,26 @@ Added `RandomHorizontalFlip` + `ColorJitter` to improve generalization.
 
 ![Latent space t-SNE](results/run_v3/latent_space.png)
 
+## Evaluation
+
+IS and FID are computed in notebook section 12 using `torchmetrics[image]` with 2048 images:
+
+| Metric | Measures | Direction |
+|---|---|---|
+| **Inception Score (IS)** | Quality + diversity of generated images via Inception-v3 | Higher = better |
+| **Fréchet Inception Distance (FID)** | Distance between real and generated distributions in Inception-v3 feature space | Lower = better |
+
+Scores are logged to the respective MLflow run for easy comparison between VAE and cVAE.
+
 ## Project structure
 
 ```
 cvae-lab/
-├── vae_animals.ipynb   # Main notebook (exploration → training → generation)
+├── vae_animals.ipynb   # Main notebook (exploration → training → generation → evaluation)
 ├── model.py            # VAE + cVAE architectures (Encoder, Decoder, VAE, CVAE, vae_loss)
-├── dataset.py          # AnimalsDataset with class labels and DataLoader
+├── dataset.py          # AnimalsDataset with class labels, CLASS_TO_IDX, get_dataloader
 ├── train.py            # VAE training script
-├── train_cvae.py       # cVAE training script (class-conditional) — coming soon
+├── train_cvae.py       # cVAE training script (coming — Etapa 3)
 ├── generate.py         # Image generation and latent space visualization
 ├── visualize.py        # t-SNE / UMAP latent space visualization
 ├── requirements.txt    # Python dependencies
@@ -148,9 +181,10 @@ Results are organized by run under `results/`:
 - [x] KL annealing
 - [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
 - [x] Latent space visualization (t-SNE / UMAP)
+- [x] IS & FID evaluation metrics
 - [ ] Conditional VAE (class-guided generation)
-  - [ ] Etapa 1 — Dataset com labels
-  - [ ] Etapa 2 — Arquitetura cVAE (`model.py`)
+  - [x] Etapa 1 — Dataset com labels (`dataset.py`)
+  - [x] Etapa 2 — Arquitetura cVAE (`model.py`)
   - [ ] Etapa 3 — Script de treino (`train_cvae.py`)
   - [ ] Etapa 4 — Geração condicional (`generate.py --class dog`)
   - [ ] Etapa 5 — Visualização t-SNE com clusters separados
@@ -167,4 +201,5 @@ The dataset is **not included** in this repository — download it separately fr
 - torch 2.2.2
 - torchvision 0.17.2
 - mlflow 2.13.2
+- torchmetrics[image] 1.9.0
 - numpy, Pillow, matplotlib, tqdm, jupyter

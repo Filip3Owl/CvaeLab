@@ -1,3 +1,4 @@
+import argparse
 import os
 import torch
 import mlflow
@@ -26,6 +27,11 @@ EXPERIMENT_NAME = "cvae-animals10"
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--resume", type=str, default=None,
+                        help="Path to a vae_epochXXX.pt checkpoint to resume from")
+    args = parser.parse_args()
+
     device = torch.device("mps" if torch.backends.mps.is_available()
                           else "cuda" if torch.cuda.is_available()
                           else "cpu")
@@ -42,7 +48,16 @@ def main():
     optimizer = Adam(model.parameters(), lr=LR)
     scheduler = ReduceLROnPlateau(optimizer, patience=3, factor=0.5)
 
-    history = {"total": [], "recon": [], "kl": [], "beta": []}
+    history     = {"total": [], "recon": [], "kl": [], "beta": []}
+    start_epoch = 1
+
+    if args.resume:
+        ckpt = torch.load(args.resume, map_location=device)
+        model.load_state_dict(ckpt["model_state"])
+        optimizer.load_state_dict(ckpt["optimizer_state"])
+        history     = ckpt.get("history", history)
+        start_epoch = ckpt["epoch"] + 1
+        print(f"Resumed from {args.resume} — continuing from epoch {start_epoch}")
 
     with mlflow.start_run() as run:
         print(f"MLflow run ID: {run.info.run_id}")
@@ -60,7 +75,7 @@ def main():
             "device":      str(device),
         })
 
-        for epoch in range(1, EPOCHS + 1):
+        for epoch in range(start_epoch, EPOCHS + 1):
             model.train()
             total_sum = recon_sum = kl_sum = 0.0
 

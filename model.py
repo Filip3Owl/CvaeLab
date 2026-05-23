@@ -2,10 +2,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-LATENT_DIM = 128
-DROPOUT    = 0.2
-BETA_MAX   = 1.0
-KL_WARMUP  = 25
+LATENT_DIM  = 128
+DROPOUT     = 0.2
+BETA_MAX    = 1.0
+KL_WARMUP   = 25
+NORM        = "batch"   # "batch" | "group"
+GROUP_SIZE  = 8         # channels per group when NORM="group"
+
+
+def _norm(norm: str, num_channels: int) -> nn.Module:
+    """Return BatchNorm2d or GroupNorm depending on `norm`."""
+    if norm == "group":
+        return nn.GroupNorm(num_channels // GROUP_SIZE, num_channels)
+    return nn.BatchNorm2d(num_channels)
 
 
 class Encoder(nn.Module):
@@ -20,33 +29,33 @@ class Encoder(nn.Module):
     the transition from spatial to latent representation.
     """
 
-    def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT):
+    def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT, norm: str = NORM):
         super().__init__()
         self.conv = nn.Sequential(
             # 3 × 64 × 64  ->  32 × 32 × 32
             nn.Conv2d(3,   32,  4, stride=2, padding=1),
-            nn.BatchNorm2d(32),
+            _norm(norm, 32),
             nn.LeakyReLU(0.2),
 
             # 32 × 32 × 32  ->  64 × 16 × 16
             nn.Conv2d(32,  64,  4, stride=2, padding=1),
-            nn.BatchNorm2d(64),
+            _norm(norm, 64),
             nn.LeakyReLU(0.2),
-            nn.Dropout2d(dropout),  # drops entire channels randomly
+            nn.Dropout2d(dropout),
 
             # 64 × 16 × 16  ->  128 × 8 × 8
             nn.Conv2d(64,  128, 4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
+            _norm(norm, 128),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(dropout),
 
             # 128 × 8 × 8  ->  256 × 4 × 4
             nn.Conv2d(128, 256, 4, stride=2, padding=1),
-            nn.BatchNorm2d(256),
+            _norm(norm, 256),
             nn.LeakyReLU(0.2),
         )
         flat = 256 * 4 * 4
-        self.pre_latent = nn.Dropout(dropout)  # regularizes before linear projection
+        self.pre_latent = nn.Dropout(dropout)
         self.fc_mu     = nn.Linear(flat, latent_dim)
         self.fc_logvar = nn.Linear(flat, latent_dim)
 
@@ -67,32 +76,32 @@ class Decoder(nn.Module):
     the decoder from over-relying on specific latent dimensions.
     """
 
-    def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT):
+    def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT, norm: str = NORM):
         super().__init__()
         self.fc = nn.Sequential(
             nn.Linear(latent_dim, 256 * 4 * 4),
-            nn.Dropout(dropout),  # regularizes right after latent projection
+            nn.Dropout(dropout),
         )
         self.deconv = nn.Sequential(
             # 256 × 4 × 4  ->  128 × 8 × 8
             nn.ConvTranspose2d(256, 128, 4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
+            _norm(norm, 128),
             nn.ReLU(),
 
             # 128 × 8 × 8  ->  64 × 16 × 16
             nn.ConvTranspose2d(128, 64,  4, stride=2, padding=1),
-            nn.BatchNorm2d(64),
+            _norm(norm, 64),
             nn.ReLU(),
             nn.Dropout2d(dropout),
 
             # 64 × 16 × 16  ->  32 × 32 × 32
             nn.ConvTranspose2d(64,  32,  4, stride=2, padding=1),
-            nn.BatchNorm2d(32),
+            _norm(norm, 32),
             nn.ReLU(),
 
             # 32 × 32 × 32  ->  3 × 64 × 64
             nn.ConvTranspose2d(32,  3,   4, stride=2, padding=1),
-            nn.Tanh(),  # output in [-1, 1], matching data normalization
+            nn.Tanh(),
         )
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
@@ -111,10 +120,10 @@ class VAE(nn.Module):
     During eval mode, returns μ directly (no noise).
     """
 
-    def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT):
+    def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT, norm: str = NORM):
         super().__init__()
-        self.encoder = Encoder(latent_dim, dropout)
-        self.decoder = Decoder(latent_dim, dropout)
+        self.encoder = Encoder(latent_dim, dropout, norm)
+        self.decoder = Decoder(latent_dim, dropout, norm)
 
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         if self.training:
@@ -156,26 +165,27 @@ class ConditionalEncoder(nn.Module):
         num_classes: int = NUM_CLASSES,
         embed_dim: int = EMBED_DIM,
         dropout: float = DROPOUT,
+        norm: str = NORM,
     ):
         super().__init__()
         self.embedding = nn.Embedding(num_classes, embed_dim)
         self.conv = nn.Sequential(
             nn.Conv2d(3,   32,  4, stride=2, padding=1),
-            nn.BatchNorm2d(32),
+            _norm(norm, 32),
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(32,  64,  4, stride=2, padding=1),
-            nn.BatchNorm2d(64),
+            _norm(norm, 64),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(dropout),
 
             nn.Conv2d(64,  128, 4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
+            _norm(norm, 128),
             nn.LeakyReLU(0.2),
             nn.Dropout2d(dropout),
 
             nn.Conv2d(128, 256, 4, stride=2, padding=1),
-            nn.BatchNorm2d(256),
+            _norm(norm, 256),
             nn.LeakyReLU(0.2),
         )
         flat = 256 * 4 * 4
@@ -205,6 +215,7 @@ class ConditionalDecoder(nn.Module):
         num_classes: int = NUM_CLASSES,
         embed_dim: int = EMBED_DIM,
         dropout: float = DROPOUT,
+        norm: str = NORM,
     ):
         super().__init__()
         self.embedding = nn.Embedding(num_classes, embed_dim)
@@ -214,16 +225,16 @@ class ConditionalDecoder(nn.Module):
         )
         self.deconv = nn.Sequential(
             nn.ConvTranspose2d(256, 128, 4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
+            _norm(norm, 128),
             nn.ReLU(),
 
             nn.ConvTranspose2d(128, 64,  4, stride=2, padding=1),
-            nn.BatchNorm2d(64),
+            _norm(norm, 64),
             nn.ReLU(),
             nn.Dropout2d(dropout),
 
             nn.ConvTranspose2d(64,  32,  4, stride=2, padding=1),
-            nn.BatchNorm2d(32),
+            _norm(norm, 32),
             nn.ReLU(),
 
             nn.ConvTranspose2d(32,  3,   4, stride=2, padding=1),
@@ -250,10 +261,11 @@ class CVAE(nn.Module):
         num_classes: int = NUM_CLASSES,
         embed_dim: int = EMBED_DIM,
         dropout: float = DROPOUT,
+        norm: str = NORM,
     ):
         super().__init__()
-        self.encoder = ConditionalEncoder(latent_dim, num_classes, embed_dim, dropout)
-        self.decoder = ConditionalDecoder(latent_dim, num_classes, embed_dim, dropout)
+        self.encoder = ConditionalEncoder(latent_dim, num_classes, embed_dim, dropout, norm)
+        self.decoder = ConditionalDecoder(latent_dim, num_classes, embed_dim, dropout, norm)
 
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         if self.training:

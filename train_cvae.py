@@ -20,6 +20,7 @@ DROPOUT         = 0.2
 BETA_MAX        = 1.0
 KL_WARMUP       = 25
 AUGMENT         = True
+NORM            = "batch"  # normalization: "batch" | "group"
 SAVE_EVERY      = 5
 CKPT_DIR        = "checkpoints"
 EXPERIMENT_NAME = "cvae-animals10"
@@ -44,7 +45,7 @@ def main():
 
     mlflow.set_experiment(EXPERIMENT_NAME)
 
-    model     = CVAE(latent_dim=LATENT_DIM, embed_dim=EMBED_DIM, dropout=DROPOUT).to(device)
+    model     = CVAE(latent_dim=LATENT_DIM, embed_dim=EMBED_DIM, dropout=DROPOUT, norm=NORM).to(device)
     optimizer = Adam(model.parameters(), lr=LR)
     scheduler = ReduceLROnPlateau(optimizer, patience=3, factor=0.5)
 
@@ -73,6 +74,7 @@ def main():
             "embed_dim":   EMBED_DIM,
             "batch_size":  BATCH_SIZE,
             "augment":     AUGMENT,
+            "norm":        NORM,
             "optimizer":   "Adam",
             "device":      str(device),
         })

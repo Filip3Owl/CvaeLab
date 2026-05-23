@@ -17,9 +17,10 @@ EPOCHS          = 50
 LR              = 1e-3
 LATENT_DIM      = 128
 DROPOUT         = 0.2
-BETA_MAX        = 1.0   # maximum KL weight
-KL_WARMUP       = 25    # epochs to anneal β from 0 → BETA_MAX
-AUGMENT         = True  # data augmentation (flip + color jitter)
+BETA_MAX        = 1.0      # maximum KL weight
+KL_WARMUP       = 25       # epochs to anneal β from 0 → BETA_MAX
+AUGMENT         = True     # data augmentation (flip + color jitter)
+NORM            = "batch"  # normalization: "batch" | "group"
 SAVE_EVERY      = 5
 CKPT_DIR        = "checkpoints"
 EXPERIMENT_NAME = "cvae-animals10"
@@ -44,7 +45,7 @@ def main():
 
     mlflow.set_experiment(EXPERIMENT_NAME)
 
-    model     = VAE(latent_dim=LATENT_DIM, dropout=DROPOUT).to(device)
+    model     = VAE(latent_dim=LATENT_DIM, dropout=DROPOUT, norm=NORM).to(device)
     optimizer = Adam(model.parameters(), lr=LR)
     scheduler = ReduceLROnPlateau(optimizer, patience=3, factor=0.5)
 
@@ -71,6 +72,7 @@ def main():
             "latent_dim":  LATENT_DIM,
             "batch_size":  BATCH_SIZE,
             "augment":     AUGMENT,
+            "norm":        NORM,
             "optimizer":   "Adam",
             "device":      str(device),
         })

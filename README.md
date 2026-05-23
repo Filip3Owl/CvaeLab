@@ -94,9 +94,24 @@ Added `RandomHorizontalFlip` + `ColorJitter` to improve generalization.
 
 ![Training history v3](results/run_v3/training_history.png)
 
-### Latent space — t-SNE projection
+### Latent space — t-SNE projection (run v3)
 
 ![Latent space t-SNE](results/run_v3/latent_space.png)
+
+### Run v4 — Notebook run (KL collapse)
+
+Trained directly from the notebook training cell with fixed β = 1.0 (no warmup). The KL term spiked to ~10 000 at epoch 1 then collapsed to ~0, meaning the encoder ignored the input and the decoder stopped using the latent space.
+
+| Epoch | Total loss | Recon loss | KL divergence |
+|---|---|---|---|
+| 1 | ~11 000 | ~1 400 | ~9 600 |
+| 10 | ~900 | ~750 | ~150 → 0 |
+| 50 | ~600 | ~430 | ~0 |
+
+> **Lesson:** always use `KL_WARMUP` to anneal β from 0 → 1. Without it, a high initial KL pushes the encoder to collapse the posterior to `N(0, I)`, making the latent code uninformative.
+
+![Training history v4](results/run_v4/training_history.png)
+![Generated samples v4](results/run_v4/generated_samples.png)
 
 ## Evaluation
 
@@ -117,7 +132,7 @@ cvae-lab/
 ├── model.py            # VAE + cVAE architectures (Encoder, Decoder, VAE, CVAE, vae_loss)
 ├── dataset.py          # AnimalsDataset with class labels, CLASS_TO_IDX, get_dataloader
 ├── train.py            # VAE training script
-├── train_cvae.py       # cVAE training script (coming — Etapa 3)
+├── train_cvae.py       # cVAE training script
 ├── generate.py         # Image generation and latent space visualization
 ├── visualize.py        # t-SNE / UMAP latent space visualization
 ├── requirements.txt    # Python dependencies
@@ -185,7 +200,7 @@ Results are organized by run under `results/`:
 - [ ] Conditional VAE (class-guided generation)
   - [x] Etapa 1 — Dataset com labels (`dataset.py`)
   - [x] Etapa 2 — Arquitetura cVAE (`model.py`)
-  - [ ] Etapa 3 — Script de treino (`train_cvae.py`)
+  - [x] Etapa 3 — Script de treino (`train_cvae.py`)
   - [ ] Etapa 4 — Geração condicional (`generate.py --class dog`)
   - [ ] Etapa 5 — Visualização t-SNE com clusters separados
 - [ ] Perceptual loss

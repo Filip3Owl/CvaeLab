@@ -118,7 +118,27 @@ Output images are organized by run under `results/run_vN/` (committed to the rep
 | `results/run_vN/interpolation.png` | Latent space interpolation (z₁ → z₂) |
 | `results/run_vN/latent_space.png` | t-SNE / UMAP projection of the latent space, colored by class |
 
-After each run, move the images from `results/` to `results/run_vN/` and add the new folder to `.gitignore` exceptions.
+After each run, move the images from the project root to `results/run_vN/` and add the new folder to `.gitignore` exceptions.
+
+#### Run history
+
+| Run | Model | Notes |
+|---|---|---|
+| `run_v1` | VAE | Baseline — no dropout, no KL annealing |
+| `run_v2` | VAE | Added dropout + data augmentation |
+| `run_v3` | VAE | Added KL annealing (`KL_WARMUP=25`) + t-SNE visualization |
+| `run_v4` | VAE | KL collapsed to ~0 (no annealing in notebook training cell); 3-panel history plot (before fix) |
+
+> **KL posterior collapse**: run_v4 shows KL → 0, meaning the encoder ignores the input and the latent space is unused. Always use `get_beta` / `KL_WARMUP` to anneal β from 0 → 1 during training.
+
+#### macOS SSL note (IS / FID cell)
+
+Inception-v3 is downloaded on first run. On macOS with Homebrew Python the SSL handshake fails. A patch cell is already inserted before the metrics cell in the notebook:
+
+```python
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+```
 
 ### Key constants (defined in `model.py`)
 
@@ -145,7 +165,7 @@ Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`, `AUGMENT`) are def
 - [ ] Conditional VAE (class-guided generation)
   - [x] Etapa 1 — Dataset com labels (`dataset.py`)
   - [x] Etapa 2 — Arquitetura cVAE (`model.py`)
-  - [ ] Etapa 3 — Script de treino (`train_cvae.py`)
+  - [x] Etapa 3 — Script de treino (`train_cvae.py`)
   - [ ] Etapa 4 — Geração condicional (`generate.py --class dog`)
   - [ ] Etapa 5 — Visualização t-SNE com clusters separados
 - [ ] Perceptual loss

@@ -150,6 +150,8 @@ ssl._create_default_https_context = ssl._create_unverified_context
 | `KL_WARMUP` | 25 | Epochs to anneal β from 0 → BETA_MAX |
 | `NUM_CLASSES` | 10 | Number of animal classes |
 | `EMBED_DIM` | 64 | Class embedding dimensionality in cVAE |
+| `NORM` | `"batch"` | Normalization layer: `"batch"` (BatchNorm2d) or `"group"` (GroupNorm, 8 groups) |
+| `GROUP_SIZE` | 8 | Channels per group when `NORM="group"` |
 
 Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`, `AUGMENT`) are defined at the top of `train.py` and mirrored in notebook cells 3 and 7.
 
@@ -162,6 +164,7 @@ Training constants (`EPOCHS`, `LR`, `BATCH_SIZE`, `IMG_SIZE`, `AUGMENT`) are def
 - [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
 - [x] Latent space visualization (t-SNE / UMAP)
 - [x] IS & FID evaluation metrics (notebook section 12)
+- [x] GroupNorm as configurable alternative to BatchNorm (`NORM = "batch" | "group"`)
 - [ ] Conditional VAE (class-guided generation)
   - [x] Etapa 1 — Dataset com labels (`dataset.py`)
   - [x] Etapa 2 — Arquitetura cVAE (`model.py`)

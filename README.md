@@ -30,9 +30,10 @@ Decoder:                        z (128) → FC → ConvTranspose×4 → 3×64×6
 |---|---|
 | Input resolution | 64 × 64 × 3 |
 | Latent dimension | 128 |
-| Encoder | 4× Conv2d + BatchNorm + LeakyReLU + Dropout2d |
-| Decoder | FC + 4× ConvTranspose2d + BatchNorm + ReLU + Dropout2d + Tanh |
-| Loss | MSE reconstruction + β · KL divergence (β = 1) |
+| Encoder | 4× Conv2d + Norm + LeakyReLU + Dropout2d |
+| Decoder | FC + 4× ConvTranspose2d + Norm + ReLU + Dropout2d + Tanh |
+| Normalization | `BatchNorm2d` (default) or `GroupNorm` (8 groups) — set via `NORM` |
+| Loss | MSE reconstruction + β · KL divergence with linear warmup |
 | Optimizer | Adam (lr = 1e-3, ReduceLROnPlateau) |
 | Dropout | 0.2 (encoder and decoder) |
 | Parameters | 2,958,659 |
@@ -52,6 +53,7 @@ Image x ──► ConditionalEncoder ──► μ, log σ²  ──► z = μ + 
 | Class embedding | `nn.Embedding(10, 64)` in both encoder and decoder |
 | Encoder conditioning | `cat([conv_features, embed(y)])` before μ / log σ² heads |
 | Decoder conditioning | `cat([z, embed(y)])` before FC projection |
+| Normalization | `BatchNorm2d` (default) or `GroupNorm` (8 groups) — set via `NORM` |
 | Parameters | 3,238,467 |
 
 At inference, `CVAE.generate(y)` samples `z ~ N(0, I)` and decodes with the target class label.
@@ -197,6 +199,7 @@ Results are organized by run under `results/`:
 - [x] Data augmentation (RandomHorizontalFlip, ColorJitter)
 - [x] Latent space visualization (t-SNE / UMAP)
 - [x] IS & FID evaluation metrics
+- [x] GroupNorm as configurable alternative to BatchNorm (`NORM = "batch" | "group"`)
 - [ ] Conditional VAE (class-guided generation)
   - [x] Etapa 1 — Dataset com labels (`dataset.py`)
   - [x] Etapa 2 — Arquitetura cVAE (`model.py`)

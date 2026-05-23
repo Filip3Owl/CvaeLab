@@ -242,16 +242,28 @@ def plot_interpolation_conditional(model, device, class_idx: int,
 # ── Loss history ──────────────────────────────────────────────────────────────
 
 def plot_loss_history(history: dict):
-    fig, axes = plt.subplots(1, 4, figsize=(16, 4))
-    axes[0].plot(history.get("total", []));  axes[0].set_title("Total loss")
-    axes[1].plot(history.get("recon", []));  axes[1].set_title("Reconstruction loss")
-    axes[2].plot(history.get("kl",    []));  axes[2].set_title("KL divergence")
-    axes[3].plot(history.get("beta",  []));  axes[3].set_title("β schedule")
-    for ax in axes:
+    beta_data = history.get("beta", [])
+    n_panels  = 4 if beta_data else 3
+    fig, axes = plt.subplots(1, n_panels, figsize=(n_panels * 4, 4))
+
+    panels = [
+        ("total", "Total loss",           "royalblue"),
+        ("recon", "Reconstruction loss",  "darkorange"),
+        ("kl",    "KL divergence",        "seagreen"),
+    ]
+    if beta_data:
+        panels.append(("beta", "β schedule", "mediumpurple"))
+
+    for ax, (key, title, color) in zip(axes, panels):
+        data   = history.get(key, [])
+        epochs = range(1, len(data) + 1)
+        ax.plot(epochs, data, color=color, linewidth=2)
+        ax.set_title(title, fontsize=11)
         ax.set_xlabel("Epoch")
         ax.grid(alpha=0.3)
+
     plt.tight_layout()
-    plt.savefig("training_history.png", dpi=150)
+    plt.savefig("training_history.png", dpi=150, bbox_inches="tight")
     plt.close()
     print("Saved training_history.png")
 

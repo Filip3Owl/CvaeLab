@@ -10,7 +10,7 @@ from tqdm import tqdm
 from dataset import get_dataloader
 from model import CVAE, vae_loss, get_beta, EMBED_DIM
 
-# ── Config ───────────────────────────────────────────────────────────────────
+# ── Configuração ──────────────────────────────────────────────────────────────
 DATA_DIR        = "archive/raw-img"
 BATCH_SIZE      = 64
 EPOCHS          = 50
@@ -20,7 +20,7 @@ DROPOUT         = 0.2
 BETA_MAX        = 1.0
 KL_WARMUP       = 25
 AUGMENT         = True
-NORM            = "batch"  # normalization: "batch" | "group"
+NORM            = "batch"  # normalização: "batch" | "group"
 SAVE_EVERY      = 5
 CKPT_DIR        = "checkpoints"
 EXPERIMENT_NAME = "cvae-animals10"
@@ -30,18 +30,18 @@ EXPERIMENT_NAME = "cvae-animals10"
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", type=str, default=None,
-                        help="Path to a cvae_epochXXX.pt checkpoint to resume from")
+                        help="Caminho para um checkpoint cvae_epochXXX.pt para retomar o treino")
     args = parser.parse_args()
 
     device = torch.device("mps" if torch.backends.mps.is_available()
                           else "cuda" if torch.cuda.is_available()
                           else "cpu")
-    print(f"Device: {device}")
+    print(f"Dispositivo: {device}")
 
     os.makedirs(CKPT_DIR, exist_ok=True)
 
     loader = get_dataloader(DATA_DIR, batch_size=BATCH_SIZE, augment=AUGMENT)
-    print(f"Dataset size: {len(loader.dataset)} images")
+    print(f"Tamanho do dataset: {len(loader.dataset)} imagens")
 
     mlflow.set_experiment(EXPERIMENT_NAME)
 
@@ -58,7 +58,7 @@ def main():
         optimizer.load_state_dict(ckpt["optimizer_state"])
         history     = ckpt.get("history", history)
         start_epoch = ckpt["epoch"] + 1
-        print(f"Resumed from {args.resume} — continuing from epoch {start_epoch}")
+        print(f"Retomando de {args.resume} — continuando a partir da época {start_epoch}")
 
     with mlflow.start_run() as run:
         print(f"MLflow run ID: {run.info.run_id}")
@@ -85,7 +85,7 @@ def main():
 
             beta = get_beta(epoch, warmup=KL_WARMUP, beta_max=BETA_MAX)
 
-            for batch in tqdm(loader, desc=f"Epoch {epoch}/{EPOCHS}", leave=False):
+            for batch in tqdm(loader, desc=f"Época {epoch}/{EPOCHS}", leave=False):
                 x, y = batch
                 x = x.to(device)
                 y = y.to(device)
@@ -120,7 +120,7 @@ def main():
                 "lr":         optimizer.param_groups[0]["lr"],
             }, step=epoch)
 
-            print(f"Epoch {epoch:3d}/{EPOCHS} | β={beta:.2f} | "
+            print(f"Época {epoch:3d}/{EPOCHS} | β={beta:.2f} | "
                   f"loss={avg_total:.2f}  recon={avg_recon:.2f}  kl={avg_kl:.2f}")
 
             if epoch % SAVE_EVERY == 0:
@@ -129,7 +129,7 @@ def main():
                             "optimizer_state": optimizer.state_dict(),
                             "history": history}, path)
                 mlflow.log_artifact(path, artifact_path="checkpoints")
-                print(f"  Checkpoint saved & logged: {path}")
+                print(f"  Checkpoint salvo e registrado: {path}")
 
         final_path = os.path.join(CKPT_DIR, "cvae_final.pt")
         torch.save({"epoch": EPOCHS, "model_state": model.state_dict(),
@@ -137,8 +137,8 @@ def main():
         mlflow.pytorch.log_model(model, artifact_path="model")
         mlflow.log_artifact(final_path, artifact_path="checkpoints")
 
-        print(f"\nTraining complete. Run ID: {run.info.run_id}")
-        print(f"View results: mlflow ui  →  http://localhost:5000")
+        print(f"\nTreinamento concluído. Run ID: {run.info.run_id}")
+        print(f"Ver resultados: mlflow ui  →  http://localhost:5000")
 
 
 if __name__ == "__main__":

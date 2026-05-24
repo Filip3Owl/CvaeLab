@@ -1,8 +1,8 @@
 """
-Latent space visualization via t-SNE (or UMAP if umap-learn is installed).
-Works with both VAE and cVAE checkpoints — detected automatically.
+Visualização do espaço latente via t-SNE (ou UMAP se umap-learn estiver instalado).
+Funciona com checkpoints de VAE e cVAE — detectado automaticamente.
 
-Usage:
+Uso:
   python visualize.py --checkpoint checkpoints/vae_final.pt
   python visualize.py --checkpoint checkpoints/cvae_final.pt
   python visualize.py --checkpoint checkpoints/vae_final.pt --samples 300 --method umap
@@ -22,7 +22,7 @@ from generate import load_model
 
 
 def collect_samples(data_dir: str, samples_per_class: int):
-    """Return (path, class_idx) pairs and the ordered list of class names."""
+    """Retorna pares (caminho, índice_de_classe) e a lista ordenada de nomes de classes."""
     samples, class_names = [], []
     for cls, idx in sorted(CLASS_TO_IDX.items(), key=lambda x: x[1]):
         cls_dir = os.path.join(data_dir, cls)
@@ -38,7 +38,7 @@ def collect_samples(data_dir: str, samples_per_class: int):
 
 
 def encode(model, samples: list, device, is_cvae: bool, batch_size: int = 128):
-    """Encode images to latent μ vectors. Passes labels to encoder for cVAE."""
+    """Codifica imagens para vetores μ latentes. Passa rótulos ao encoder para cVAE."""
     model.eval()
     mus, labels = [], []
     for i in range(0, len(samples), batch_size):
@@ -61,14 +61,14 @@ def encode(model, samples: list, device, is_cvae: bool, batch_size: int = 128):
 
 def reduce_tsne(mus: np.ndarray) -> np.ndarray:
     from sklearn.manifold import TSNE
-    print("Running t-SNE (this may take a minute)...")
+    print("Executando t-SNE (pode levar alguns minutos)...")
     return TSNE(n_components=2, perplexity=40, random_state=42,
                 max_iter=1000).fit_transform(mus)
 
 
 def reduce_umap(mus: np.ndarray) -> np.ndarray:
     import umap
-    print("Running UMAP...")
+    print("Executando UMAP...")
     return umap.UMAP(n_components=2, random_state=42).fit_transform(mus)
 
 
@@ -81,40 +81,40 @@ def plot(z2d: np.ndarray, labels: np.ndarray, class_names: list,
         ax.scatter(z2d[mask, 0], z2d[mask, 1], c=[color], label=name,
                    alpha=0.6, s=10, linewidths=0)
     ax.legend(markerscale=3, framealpha=0.8, fontsize=10)
-    ax.set_title(f"Latent space — {method.upper()} projection  ({model_type})")
+    ax.set_title(f"Espaço latente — projeção {method.upper()}  ({model_type})")
     ax.set_xlabel(f"{method.upper()} 1")
     ax.set_ylabel(f"{method.upper()} 2")
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
     plt.close()
-    print(f"Saved {output_path}")
+    print(f"Salvo em {output_path}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Visualize the latent space of a VAE or cVAE checkpoint."
+        description="Visualiza o espaço latente de um checkpoint de VAE ou cVAE."
     )
     parser.add_argument("--checkpoint", default="checkpoints/vae_final.pt")
     parser.add_argument("--data",    default="archive/raw-img")
     parser.add_argument("--samples", type=int, default=200,
-                        help="Images sampled per class (default: 200)")
+                        help="Imagens amostradas por classe (padrão: 200)")
     parser.add_argument("--method",  choices=["tsne", "umap"], default="tsne")
     parser.add_argument("--output",  default=None,
-                        help="Output PNG path (auto-named by model type if omitted)")
+                        help="Caminho PNG de saída (nomeado automaticamente por tipo de modelo se omitido)")
     args = parser.parse_args()
 
     device = torch.device("cpu")
     model, _, is_cvae = load_model(args.checkpoint, device)
     model_type = "cVAE" if is_cvae else "VAE"
-    print(f"Loaded {model_type} checkpoint: {args.checkpoint}")
+    print(f"Checkpoint {model_type} carregado: {args.checkpoint}")
 
     output_path = args.output or f"latent_space_{model_type.lower()}.png"
 
-    print(f"Collecting {args.samples} samples per class from {args.data}...")
+    print(f"Coletando {args.samples} amostras por classe de {args.data}...")
     samples, class_names = collect_samples(args.data, args.samples)
-    print(f"  {len(samples)} images across {len(class_names)} classes")
+    print(f"  {len(samples)} imagens em {len(class_names)} classes")
 
-    print("Encoding images...")
+    print("Codificando imagens...")
     mus, labels = encode(model, samples, device, is_cvae)
 
     z2d = reduce_umap(mus) if args.method == "umap" else reduce_tsne(mus)

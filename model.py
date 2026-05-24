@@ -7,11 +7,11 @@ DROPOUT     = 0.2
 BETA_MAX    = 1.0
 KL_WARMUP   = 25
 NORM        = "batch"   # "batch" | "group"
-GROUP_SIZE  = 8         # channels per group when NORM="group"
+GROUP_SIZE  = 8         # canais por grupo quando NORM="group"
 
 
 def _norm(norm: str, num_channels: int) -> nn.Module:
-    """Return BatchNorm2d or GroupNorm depending on `norm`."""
+    """Retorna BatchNorm2d ou GroupNorm conforme o valor de `norm`."""
     if norm == "group":
         return nn.GroupNorm(num_channels // GROUP_SIZE, num_channels)
     return nn.BatchNorm2d(num_channels)
@@ -19,14 +19,14 @@ def _norm(norm: str, num_channels: int) -> nn.Module:
 
 class Encoder(nn.Module):
     """
-    Convolutional encoder: maps a 3×64×64 image to the parameters
-    (μ, log σ²) of a Gaussian distribution in latent space.
+    Encoder convolucional: mapeia uma imagem 3×64×64 para os parâmetros
+    (μ, log σ²) de uma distribuição Gaussiana no espaço latente.
 
-    Each conv block uses stride=2 to halve the spatial resolution
-    (learnable downsampling, equivalent to Conv + MaxPool).
-    Dropout2d drops entire feature maps to regularize spatial features.
-    A final Dropout is applied before the linear heads to regularize
-    the transition from spatial to latent representation.
+    Cada bloco conv usa stride=2 para reduzir a resolução espacial à metade
+    (downsampling aprendível, equivalente a Conv + MaxPool).
+    Dropout2d descarta mapas de features inteiros para regularizar features espaciais.
+    Um Dropout final é aplicado antes das cabeças lineares para regularizar
+    a transição da representação espacial para a latente.
     """
 
     def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT, norm: str = NORM):
@@ -60,20 +60,20 @@ class Encoder(nn.Module):
         self.fc_logvar = nn.Linear(flat, latent_dim)
 
     def forward(self, x: torch.Tensor):
-        h = self.conv(x).view(x.size(0), -1)  # flatten: (B, 256*4*4)
+        h = self.conv(x).view(x.size(0), -1)  # achatamento: (B, 256*4*4)
         h = self.pre_latent(h)
         return self.fc_mu(h), self.fc_logvar(h)
 
 
 class Decoder(nn.Module):
     """
-    Convolutional decoder: maps a latent vector z ∈ ℝ^{latent_dim}
-    back to a 3×64×64 image in the range [-1, 1].
+    Decoder convolucional: mapeia um vetor latente z ∈ ℝ^{latent_dim}
+    de volta para uma imagem 3×64×64 no intervalo [-1, 1].
 
-    ConvTranspose2d with stride=2 doubles the spatial resolution at
-    each step — the mirror image of the encoder.
-    Dropout is applied after the initial FC projection to prevent
-    the decoder from over-relying on specific latent dimensions.
+    ConvTranspose2d com stride=2 dobra a resolução espacial a cada
+    passo — imagem espelhada do encoder.
+    Dropout é aplicado após a projeção FC inicial para evitar que o
+    decoder dependa excessivamente de dimensões latentes específicas.
     """
 
     def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT, norm: str = NORM):
@@ -101,7 +101,7 @@ class Decoder(nn.Module):
 
             # 32 × 32 × 32  ->  3 × 64 × 64
             nn.ConvTranspose2d(32,  3,   4, stride=2, padding=1),
-            nn.Tanh(),
+            nn.Tanh(),  # saída em [-1, 1], correspondendo à normalização dos dados
         )
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
@@ -111,13 +111,13 @@ class Decoder(nn.Module):
 
 class VAE(nn.Module):
     """
-    Full Variational Autoencoder.
+    Autoencoder Variacional completo.
 
-    `reparameterize` implements the reparameterization trick:
+    `reparameterize` implementa o truque da reparametrização:
         z = μ + σ·ε,  ε ~ N(0, I)
-    This keeps gradients flowing through the encoder during backprop
-    because ε is sampled independently from the model parameters.
-    During eval mode, returns μ directly (no noise).
+    Isso mantém o fluxo de gradientes pelo encoder durante a retropropagação,
+    pois ε é amostrado independentemente dos parâmetros do modelo.
+    No modo eval, retorna μ diretamente (sem ruído).
     """
 
     def __init__(self, latent_dim: int = LATENT_DIM, dropout: float = DROPOUT, norm: str = NORM):
@@ -140,7 +140,7 @@ class VAE(nn.Module):
 
     @torch.no_grad()
     def generate(self, n: int) -> torch.Tensor:
-        """Generate `n` images by sampling z ~ N(0, I) directly."""
+        """Gera `n` imagens amostrando z ~ N(0, I) diretamente."""
         z = torch.randn(n, self.encoder.fc_mu.out_features).to(
             next(self.parameters()).device
         )
@@ -153,10 +153,10 @@ EMBED_DIM   = 64
 
 class ConditionalEncoder(nn.Module):
     """
-    Conditional encoder: maps (image, class label) → (μ, log σ²).
+    Encoder condicional: mapeia (imagem, rótulo de classe) → (μ, log σ²).
 
-    The class label is projected to an embedding vector and concatenated
-    with the flattened conv features before the linear heads.
+    O rótulo de classe é projetado em um vetor de embedding e concatenado
+    às features conv achatadas antes das cabeças lineares.
     """
 
     def __init__(
@@ -203,10 +203,10 @@ class ConditionalEncoder(nn.Module):
 
 class ConditionalDecoder(nn.Module):
     """
-    Conditional decoder: maps (z, class label) → 3×64×64 image.
+    Decoder condicional: mapeia (z, rótulo de classe) → imagem 3×64×64.
 
-    The class embedding is concatenated to z before the FC projection,
-    allowing the decoder to produce class-specific textures and shapes.
+    O embedding de classe é concatenado a z antes da projeção FC,
+    permitindo que o decoder produza texturas e formas específicas por classe.
     """
 
     def __init__(
@@ -249,10 +249,10 @@ class ConditionalDecoder(nn.Module):
 
 class CVAE(nn.Module):
     """
-    Conditional Variational Autoencoder.
+    Autoencoder Variacional Condicional.
 
-    Both encoder and decoder receive the class label y alongside the
-    image / latent vector, enabling class-guided generation at inference.
+    Tanto o encoder quanto o decoder recebem o rótulo de classe y junto com a
+    imagem / vetor latente, permitindo geração guiada por classe na inferência.
     """
 
     def __init__(
@@ -282,25 +282,25 @@ class CVAE(nn.Module):
 
     @torch.no_grad()
     def generate(self, y: torch.Tensor) -> torch.Tensor:
-        """Generate images conditioned on class labels y."""
+        """Gera imagens condicionadas aos rótulos de classe y."""
         z = torch.randn(y.size(0), self.encoder.fc_mu.out_features).to(y.device)
         return self.decoder(z, y)
 
 
 def get_beta(epoch: int, warmup: int = KL_WARMUP, beta_max: float = BETA_MAX) -> float:
     """
-    Compute the KL weight β for the current epoch using linear annealing.
+    Calcula o peso KL β para a época atual usando annealing linear.
 
-    β rises linearly from 0 to beta_max over `warmup` epochs,
-    then stays at beta_max for the remainder of training.
+    β sobe linearmente de 0 até beta_max ao longo de `warmup` épocas,
+    depois permanece em beta_max pelo restante do treinamento.
 
     Args:
-        epoch    : Current epoch (1-indexed).
-        warmup   : Number of epochs for the linear ramp.
-        beta_max : Target KL weight after warmup.
+        epoch    : Época atual (indexada a partir de 1).
+        warmup   : Número de épocas para a rampa linear.
+        beta_max : Peso KL alvo após o warmup.
 
     Returns:
-        β value for this epoch.
+        Valor de β para esta época.
     """
     return min(epoch / warmup, 1.0) * beta_max
 
@@ -313,24 +313,24 @@ def vae_loss(
     beta: float = 1.0,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
-    Compute the VAE ELBO loss.
+    Calcula a função de perda ELBO do VAE.
 
     Args:
-        recon   : Reconstructed image from the decoder, shape (B, C, H, W).
-        x       : Original image, shape (B, C, H, W).
-        mu      : Latent distribution means, shape (B, latent_dim).
-        logvar  : Latent distribution log-variances, shape (B, latent_dim).
-        beta    : KL weight (default=1). Increase for beta-VAE behavior.
+        recon   : Imagem reconstruída pelo decoder, shape (B, C, H, W).
+        x       : Imagem original, shape (B, C, H, W).
+        mu      : Médias da distribuição latente, shape (B, latent_dim).
+        logvar  : Log-variâncias da distribuição latente, shape (B, latent_dim).
+        beta    : Peso da KL (padrão=1). Aumentar para comportamento β-VAE.
 
     Returns:
-        total_loss : Combined scalar loss.
-        recon_loss : Reconstruction term (MSE per sample).
-        kl_loss    : KL divergence term per sample.
+        total_loss : Perda escalar combinada.
+        recon_loss : Termo de reconstrução (MSE por amostra).
+        kl_loss    : Termo de divergência KL por amostra.
     """
-    # MSE summed over pixels, averaged over the batch
+    # MSE somado sobre pixels, com média sobre o batch
     recon_loss = F.mse_loss(recon, x, reduction="sum") / x.size(0)
 
-    # Closed-form KL for Gaussians: summed over latent dims, averaged over batch
+    # KL em forma fechada para Gaussianas: somado sobre dims latentes, média sobre batch
     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / x.size(0)
 
     return recon_loss + beta * kl_loss, recon_loss, kl_loss

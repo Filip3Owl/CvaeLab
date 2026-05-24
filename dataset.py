@@ -7,7 +7,7 @@ from torchvision import transforms
 
 IMG_SIZE = 64
 
-# Italian folder name → English label
+# Nome da pasta em italiano → rótulo em inglês
 LABEL_MAP = {
     "cane":       "dog",
     "cavallo":    "horse",
@@ -21,7 +21,7 @@ LABEL_MAP = {
     "scoiattolo": "squirrel",
 }
 
-# Deterministic integer index per class (sorted alphabetically by Italian name)
+# Índice inteiro determinístico por classe (ordenado alfabeticamente pelo nome em italiano)
 CLASS_TO_IDX: dict[str, int] = {cls: i for i, cls in enumerate(sorted(LABEL_MAP))}
 IDX_TO_CLASS: dict[int, str] = {i: LABEL_MAP[cls] for cls, i in CLASS_TO_IDX.items()}
 
@@ -44,11 +44,11 @@ eval_transform = transforms.Compose([
 
 class AnimalsDataset(Dataset):
     """
-    Animals-10 dataset returning (image_tensor, class_index) pairs.
+    Dataset Animals-10 que retorna pares (tensor_imagem, índice_de_classe).
 
     Args:
-        root_dir  : Path to the dataset root (one sub-folder per class).
-        transform : torchvision transform pipeline applied to each image.
+        root_dir  : Caminho para a raiz do dataset (uma subpasta por classe).
+        transform : Pipeline de transformações torchvision aplicado a cada imagem.
     """
 
     def __init__(self, root_dir: str, transform=train_transform):

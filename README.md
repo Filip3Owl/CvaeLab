@@ -72,6 +72,8 @@ Todas as execuções: 50 épocas, ~27.000 imagens, CPU (Intel Mac), Adam lr=1e-3
 
 ![Histórico de treinamento v1](results/run_v1/training_history.png)
 
+> **Leitura:** Três subgráficos — ELBO total (azul), MSE de reconstrução (laranja) e KL (verde). A perda total cai de ~1.400 para ~572 em 50 épocas, com queda abrupta nas primeiras 10 e convergência suave nas seguintes. A MSE representa ~73 % da perda final, confirmando que o modelo priorizou reconstrução. A KL atinge o mínimo (~133) na época 2, recupera e estabiliza em ~152 — o posterior permanece ativo sem colapso.
+
 ### Execução v2 — Annealing de KL
 
 Adicionado aquecimento linear de β (0→1 ao longo de 25 épocas) para evitar colapso posterior no início do treinamento.
@@ -83,6 +85,8 @@ Adicionado aquecimento linear de β (0→1 ao longo de 25 épocas) para evitar c
 | 50 | ~572,00 | ~420,00 | ~152,00 |
 
 ![Histórico de treinamento v2](results/run_v2/training_history.png)
+
+> **Leitura:** Curvas praticamente idênticas à v1. Neste cenário, β=1 fixo não provocou colapso — o warmup atua como salvaguarda para situações de maior risco (lr mais alta, modelos maiores ou datasets mais complexos). Confirma que o baseline já era estável; o annealing é uma proteção preventiva.
 
 ### Execução v3 — Aumento de dados
 
@@ -96,9 +100,14 @@ Adicionados `RandomHorizontalFlip` + `ColorJitter` para melhorar a generalizaç�
 
 ![Histórico de treinamento v3](results/run_v3/training_history.png)
 
+> **Leitura:** Quatro subgráficos — Total, Reconstrução, KL e agendamento de β. O 4.º painel mostra β crescendo linearmente de 0 → 1 ao longo das primeiras 25 épocas e se mantendo em 1 a partir daí. As curvas de perda convergem de forma análoga à v2, confirmando que o aumento de dados (flip horizontal + color jitter) não degradou o aprendizado e contribui para melhor generalização nas amostras geradas.
+
 ### Espaço latente — projeção t-SNE (execução v3)
 
 ![Espaço latente t-SNE](results/run_v3/latent_space.png)
+
+> **Leitura:** Projeção t-SNE de ~1.000 vetores z codificados pelo encoder, cada ponto colorido por classe animal.
+> **Insight:** As 10 classes estão amplamente misturadas — sem clusters visíveis. O VAE não-condicional não organiza o espaço latente por categoria; a distribuição global é aproximadamente gaussiana, confirmando que o prior N(0, I) foi internalizado. Essa sobreposição é a principal motivação do cVAE: ao injetar o rótulo de classe no encoder e no decoder, espera-se que regiões distintas por classe surjam no espaço latente.
 
 ### Execução v4 — Treino pelo notebook (colapso de KL)
 
@@ -113,7 +122,12 @@ Treinado diretamente pela célula de treinamento do notebook com β fixo = 1,0 (
 > **Lição:** sempre use `KL_WARMUP` para fazer o annealing de β de 0 → 1. Sem ele, um KL inicial alto força o encoder a colapsar o posterior para `N(0, I)`, tornando o código latente não-informativo.
 
 ![Histórico de treinamento v4](results/run_v4/training_history.png)
+
+> **Leitura:** A escala do ELBO (esquerda) é 8× maior que nas execuções anteriores, começando em ~11.000. O painel de KL é o diagnóstico central: pico de ~9.600 na época 1, queda abrupta para ~0 até a época 5 e permanência em zero. O encoder aprendeu a mapear toda entrada para N(0, I) independente do conteúdo visual. A MSE continuou decrescendo porque o decoder passou a gerar apenas variações em torno da média do dataset, compensando a perda de informação do código latente.
+
 ![Amostras geradas v4](results/run_v4/generated_samples.png)
+
+> **Leitura:** 32 amostras de z ~ N(0, I) decodificadas após o colapso. As imagens têm aparência de "média do dataset" — formas animalesques borradas sem diversidade estrutural — evidenciando que o decoder aprendeu a ignorar z e reconstruir apenas padrões médios comuns a todas as classes.
 
 ## Avaliação
 
@@ -182,13 +196,13 @@ mlflow ui
 
 Os resultados são organizados por execução em `results/`:
 
-| Arquivo | Descrição |
-|---|---|
-| `results/run_vN/training_history.png` | Curvas de perda (total, reconstrução, KL, β) |
-| `results/run_vN/generated_samples.png` | 32 imagens amostradas de z ~ N(0, I) |
-| `results/run_vN/reconstructions.png` | Imagens originais vs. reconstruídas |
-| `results/run_vN/interpolation.png` | Transição suave entre dois vetores latentes |
-| `results/run_vN/latent_space.png` | Projeção t-SNE / UMAP do espaço latente, colorida por classe |
+| Arquivo | Descrição | O que observar |
+|---|---|---|
+| `results/run_vN/training_history.png` | Curvas de ELBO total, MSE de reconstrução, KL e agendamento de β por época | MSE decrescente = reconstrução melhorando; KL estável ≈ 150 = posterior ativo; KL → 0 = colapso posterior |
+| `results/run_vN/generated_samples.png` | 32 imagens novas amostradas de z ~ N(0, I) sem usar o encoder | Diversidade e coerência visual — borrão uniforme/sem estrutura indica colapso de KL; variedade de formas indica espaço latente rico |
+| `results/run_vN/reconstructions.png` | Imagens originais (colunas ímpares) × reconstruções do VAE (colunas pares) | Fidelidade ao original; perda de detalhes finos (pelos, bordas nítidas) é esperada com MSE como função de perda |
+| `results/run_vN/interpolation.png` | Transição linear z = (1−α)z₁ + αz₂ entre dois vetores latentes (α: 0,0 → 1,0) | Suavidade da morphing — borrão excessivo no meio (α ≈ 0,5) indica lacunas no espaço latente; transição suave indica continuidade |
+| `results/run_vN/latent_space.png` | Projeção t-SNE / UMAP dos vetores z codificados pelo encoder, colorida por classe | Clusters separados = espaço latente organizado por categoria; classes misturadas = VAE sem condicionamento, motivação para o cVAE |
 
 ## Roadmap
 

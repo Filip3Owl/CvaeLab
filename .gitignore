@@ -31,27 +31,27 @@ checkpoints/
 *.pth
 *.onnx
 
-# Images — ignored globally except inside results/
+# Images — ignored globally except inside outputs/
 *.png
 *.jpg
 *.jpeg
-!results/
-!results/run_v1/
-!results/run_v1/*.png
-!results/run_v1/*.jpg
-!results/run_v1/*.jpeg
-!results/run_v2/
-!results/run_v2/*.png
-!results/run_v2/*.jpg
-!results/run_v2/*.jpeg
-!results/run_v3/
-!results/run_v3/*.png
-!results/run_v3/*.jpg
-!results/run_v3/*.jpeg
-!results/run_v4/
-!results/run_v4/*.png
-!results/run_v4/*.jpg
-!results/run_v4/*.jpeg
+!outputs/
+!outputs/run_v1/
+!outputs/run_v1/*.png
+!outputs/run_v1/*.jpg
+!outputs/run_v1/*.jpeg
+!outputs/run_v2/
+!outputs/run_v2/*.png
+!outputs/run_v2/*.jpg
+!outputs/run_v2/*.jpeg
+!outputs/run_v3/
+!outputs/run_v3/*.png
+!outputs/run_v3/*.jpg
+!outputs/run_v3/*.jpeg
+!outputs/run_v4/
+!outputs/run_v4/*.png
+!outputs/run_v4/*.jpg
+!outputs/run_v4/*.jpeg
 
 # Dataset
 archive/
